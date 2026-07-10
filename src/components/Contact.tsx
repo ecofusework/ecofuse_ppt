@@ -60,8 +60,8 @@ export function Contact() {
         </Reveal>
 
         <div className="grid lg:grid-cols-5 gap-8">
-          <Reveal>
-            <div className="lg:col-span-2 space-y-6">
+          <Reveal className="lg:col-span-2 min-w-0">
+            <div className="space-y-6">
               <div className="glass-card p-7">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-12 h-12 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
@@ -100,8 +100,8 @@ export function Contact() {
             </div>
           </Reveal>
 
-          <Reveal delay={150}>
-            <div className="lg:col-span-3">
+          <Reveal delay={150} className="lg:col-span-3 min-w-0">
+            <div className="min-w-0">
               <div className="glass-card p-7 lg:p-10">
                 {status === 'success' ? (
                   <div className="flex flex-col items-center justify-center text-center py-12">
