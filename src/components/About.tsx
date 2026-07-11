@@ -83,7 +83,7 @@ export function About() {
 
               <div className="grid grid-cols-2 gap-4 pt-4">
                 <div className="glass-card p-5 text-center">
-                  <div className="font-display font-extrabold text-3xl gradient-text">2025</div>
+                  <div className="font-display font-extrabold text-3xl gradient-text">2024</div>
                   <div className="text-sm text-slate-500 dark:text-slate-400 mt-1">Founded</div>
                 </div>
                 <div className="glass-card p-5 text-center">
