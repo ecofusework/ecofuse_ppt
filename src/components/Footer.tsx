@@ -50,7 +50,7 @@ export function Footer() {
         </div>
 
         <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-slate-500 text-sm">&copy; {new Date().getFullYear()} EcoFuse. All rights reserved. Designed and developed by Tanay Hardageri.</p>
+          <p className="text-slate-500 text-sm">&copy; {new Date().getFullYear()} EcoFuse. All rights reserved by TanayHardegeri. Designed and developed by Tanay Hardageri.</p>
           <p className="text-slate-500 text-sm flex items-center gap-1.5">
             Made with <Heart className="w-4 h-4 text-primary-500 fill-primary-500" /> for a greener planet
           </p>
