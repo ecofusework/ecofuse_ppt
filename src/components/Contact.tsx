@@ -1,41 +1,93 @@
 import { useState } from 'react';
-import { Mail, MapPin, Send, CheckCircle, Loader2, User, MessageSquare } from 'lucide-react';
+import { Mail, MapPin, Send, CheckCircle, Loader2, User, MessageSquare, ShieldCheck, ArrowLeft } from 'lucide-react';
 import { Reveal } from './Reveal';
 import { QRCodeDisplay } from './QRCodeDisplay';
+import { EDGE_FUNCTION_URL } from '../lib/supabase';
 
-type Status = 'idle' | 'loading' | 'success' | 'error';
+type Status = 'idle' | 'sending-code' | 'awaiting-code' | 'verifying' | 'success' | 'error';
 
 export function Contact() {
   const [status, setStatus] = useState<Status>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [submissionId, setSubmissionId] = useState('');
+  const [code, setCode] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+
+  const headers = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setStatus('loading');
+    setStatus('sending-code');
     setErrorMsg('');
 
     const form = e.currentTarget;
     const formData = new FormData(form);
+    const name = formData.get('name') as string;
+    const email = formData.get('email') as string;
+    const subject = formData.get('subject') as string;
+    const message = formData.get('message') as string;
+
+    setPendingEmail(email);
 
     try {
-      const response = await fetch('https://formspree.io/f/xpqgegvj', {
+      const response = await fetch(EDGE_FUNCTION_URL, {
         method: 'POST',
-        body: formData,
-        headers: { Accept: 'application/json' },
+        headers,
+        body: JSON.stringify({ action: 'send-code', name, email, subject, message }),
       });
 
-      if (response.ok) {
-        setStatus('success');
-        form.reset();
-      } else {
-        const data = await response.json().catch(() => ({}));
-        setErrorMsg(data?.errors?.[0]?.message || 'Something went wrong. Please try again.');
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrorMsg(data?.error || 'Something went wrong. Please try again.');
         setStatus('error');
+        return;
       }
+
+      setSubmissionId(data.submissionId);
+      setStatus('awaiting-code');
     } catch {
       setErrorMsg('Network error. Please check your connection and try again.');
       setStatus('error');
     }
+  };
+
+  const handleVerify = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setStatus('verifying');
+    setErrorMsg('');
+
+    try {
+      const response = await fetch(EDGE_FUNCTION_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ action: 'verify', code, submissionId }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setErrorMsg(data?.error || 'Verification failed. Please try again.');
+        setStatus('awaiting-code');
+        return;
+      }
+
+      setStatus('success');
+    } catch {
+      setErrorMsg('Network error. Please check your connection and try again.');
+      setStatus('awaiting-code');
+    }
+  };
+
+  const resetForm = () => {
+    setStatus('idle');
+    setErrorMsg('');
+    setSubmissionId('');
+    setCode('');
+    setPendingEmail('');
   };
 
   return (
@@ -110,7 +162,61 @@ export function Contact() {
                     </div>
                     <h3 className="font-display font-bold text-2xl text-slate-900 dark:text-white mb-2">Message Sent!</h3>
                     <p className="text-slate-600 dark:text-slate-300 mb-6">Thank you for reaching out. We'll get back to you soon.</p>
-                    <button onClick={() => setStatus('idle')} className="btn-secondary">Send Another Message</button>
+                    <button onClick={resetForm} className="btn-secondary">Send Another Message</button>
+                  </div>
+                ) : status === 'awaiting-code' || status === 'verifying' ? (
+                  <div>
+                    <button
+                      onClick={resetForm}
+                      className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors mb-6"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      Back to form
+                    </button>
+                    <div className="flex flex-col items-center text-center mb-6">
+                      <div className="w-16 h-16 rounded-2xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center mb-4">
+                        <ShieldCheck className="w-8 h-8 text-primary-600 dark:text-primary-400" />
+                      </div>
+                      <h3 className="font-display font-bold text-xl text-slate-900 dark:text-white mb-2">Verify Your Email</h3>
+                      <p className="text-slate-600 dark:text-slate-300 text-sm">
+                        We sent a 6-digit code to <span className="font-semibold text-slate-900 dark:text-white">{pendingEmail}</span>.
+                        Enter it below to send your message.
+                      </p>
+                    </div>
+                    <form onSubmit={handleVerify} className="space-y-5">
+                      <div>
+                        <input
+                          type="text"
+                          value={code}
+                          onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                          placeholder="000000"
+                          required
+                          autoFocus
+                          inputMode="numeric"
+                          className="w-full text-center text-3xl tracking-[0.5em] font-bold py-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-300 dark:placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        />
+                      </div>
+
+                      {errorMsg && (
+                        <div className="px-4 py-3 rounded-xl bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 text-error-700 dark:text-error-400 text-sm text-center">
+                          {errorMsg}
+                        </div>
+                      )}
+
+                      <button type="submit" disabled={status === 'verifying'} className="btn-primary w-full disabled:opacity-70 disabled:cursor-not-allowed">
+                        {status === 'verifying' ? (
+                          <>
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                            Verifying...
+                          </>
+                        ) : (
+                          <>
+                            Verify & Send
+                            <Send className="w-5 h-5" />
+                          </>
+                        )}
+                      </button>
+                    </form>
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-5">
@@ -144,17 +250,22 @@ export function Contact() {
                       </div>
                     </div>
 
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <ShieldCheck className="w-4 h-4 text-primary-500" />
+                      <span>You'll receive a 6-digit code to verify your email before your message is sent.</span>
+                    </div>
+
                     {status === 'error' && (
                       <div className="px-4 py-3 rounded-xl bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 text-error-700 dark:text-error-400 text-sm">
                         {errorMsg}
                       </div>
                     )}
 
-                    <button type="submit" disabled={status === 'loading'} className="btn-primary w-full disabled:opacity-70 disabled:cursor-not-allowed">
-                      {status === 'loading' ? (
+                    <button type="submit" disabled={status === 'sending-code'} className="btn-primary w-full disabled:opacity-70 disabled:cursor-not-allowed">
+                      {status === 'sending-code' ? (
                         <>
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          Sending...
+                          Sending Code...
                         </>
                       ) : (
                         <>
